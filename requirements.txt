@@ -1,0 +1,14 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+SQLAlchemy[asyncio]>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.13.0
+
+pydantic[email]>=2.6.0
+pydantic-settings>=2.0.0
+python-jose[cryptography]>=3.3.0
+# Намеренно без [bcrypt] — passlib 1.7.4 несовместим с bcrypt >=4.1.
+# Используем pbkdf2_sha256, см. комментарий в app/core/security.py.
+passlib>=1.7.4
+
