@@ -5,6 +5,7 @@ import sys
 
 def run() -> None:
     subprocess.check_call(["alembic", "upgrade", "head"])
+    subprocess.check_call([sys.executable, "-m", "scripts.ensure_admin"])
     subprocess.check_call([sys.executable, "-m", "scripts.seed_gifts"])
 
     port = os.getenv("PORT", "8000")

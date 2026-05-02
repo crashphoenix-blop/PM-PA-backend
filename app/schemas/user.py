@@ -58,6 +58,7 @@ class UserCreate(UserBase):
 class UserRead(UserBase):
     id: int
     is_guest: bool = False
+    is_admin: bool = False
     created_at: datetime
     avatar_url: Optional[str] = None
 

@@ -31,3 +31,14 @@ class GiftListResponse(BaseModel):
     total: int
     page: int
     per_page: int
+
+
+class GiftCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    description: Optional[str] = None
+    price: int = Field(..., ge=0)
+    image_url: HttpUrl
+    store_name: Optional[str] = Field(None, max_length=255)
+    store_url: Optional[HttpUrl] = None
+    category_ids: List[int] = Field(default_factory=list)
+    category_names: List[str] = Field(default_factory=list)
