@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.models import Category, Gift, GiftImage, gift_categories_table
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 IOS_GIFTS_JSON = PROJECT_ROOT / "ios-app" / "SurpriseApp" / "Resources" / "gifts.json"
 LOCAL_GIFTS_JSON = PROJECT_ROOT / "data" / "gifts.json"
 
