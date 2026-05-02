@@ -11,6 +11,7 @@
 """
 import asyncio
 import json
+import os
 from pathlib import Path
 
 from sqlalchemy import delete, select
@@ -21,6 +22,30 @@ from app.models import Category, Gift, GiftImage, gift_categories_table
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 IOS_GIFTS_JSON = PROJECT_ROOT / "ios-app" / "SurpriseApp" / "Resources" / "gifts.json"
+LOCAL_GIFTS_JSON = PROJECT_ROOT / "data" / "gifts.json"
+
+
+def resolve_seed_file() -> Path | None:
+    """
+    В прод-окружении (например Amvera) папки ios-app обычно нет,
+    поэтому поддерживаем несколько источников seed-файла:
+    1) SURPRISE_GIFTS_JSON_PATH (явный путь через env)
+    2) data/gifts.json в репозитории backend
+    3) исходный путь из монорепы ios-app/.../gifts.json
+    """
+    env_path = os.getenv("SURPRISE_GIFTS_JSON_PATH", "").strip()
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists():
+            return candidate
+
+    if LOCAL_GIFTS_JSON.exists():
+        return LOCAL_GIFTS_JSON
+
+    if IOS_GIFTS_JSON.exists():
+        return IOS_GIFTS_JSON
+
+    return None
 
 
 async def upsert_categories(
@@ -100,7 +125,12 @@ async def upsert_gift(
 
 
 async def seed(session: AsyncSession) -> None:
-    with IOS_GIFTS_JSON.open("r", encoding="utf-8") as f:
+    seed_file = resolve_seed_file()
+    if seed_file is None:
+        # Не валим деплой: каталог можно заполнить через admin UI.
+        return
+
+    with seed_file.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     gifts_data = data.get("gifts", [])
