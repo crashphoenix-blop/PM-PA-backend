@@ -34,6 +34,14 @@ def create_app() -> FastAPI:
     app.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
     app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 
+    @app.get("/", tags=["health"])
+    async def root_health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/healthz", tags=["health"])
+    async def healthz() -> dict[str, str]:
+        return {"status": "ok"}
+
     return app
 
 
