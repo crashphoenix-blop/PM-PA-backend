@@ -1,6 +1,8 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -20,8 +22,15 @@ from app.schemas.user import (
     UserCreate,
     UserRead,
 )
+from scripts.ensure_admin import ensure_admin
 
 router = APIRouter()
+
+def _normalize_identifier(value: str) -> str:
+    normalized = (value or "").strip()
+    if "@" in normalized:
+        return normalized.lower()
+    return normalized
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -86,15 +95,30 @@ async def login(
     """
     Логин по email или телефону + пароль.
     """
-    identifier = payload.email_or_phone
+    identifier = _normalize_identifier(payload.email_or_phone)
     stmt = select(User).where(
         or_(
-            User.email == identifier,
+            func.lower(User.email) == identifier.lower(),
             User.phone == identifier,
         )
     )
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
+
+    admin_login = _normalize_identifier(os.getenv("SURPRISE_ADMIN_LOGIN", ""))
+    admin_password = os.getenv("SURPRISE_ADMIN_PASSWORD", "").strip()
+    if (not user or not verify_password(payload.password, user.password_hash)) and admin_login and admin_password:
+        if identifier == admin_login and payload.password == admin_password:
+            await ensure_admin(session)
+            result = await session.execute(
+                select(User).where(
+                    or_(
+                        func.lower(User.email) == identifier.lower(),
+                        User.phone == identifier,
+                    )
+                )
+            )
+            user = result.scalar_one_or_none()
 
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(

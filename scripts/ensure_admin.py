@@ -10,7 +10,7 @@ from app.models import User
 
 
 async def ensure_admin(session: AsyncSession) -> None:
-    login = os.getenv("SURPRISE_ADMIN_LOGIN", "").strip()
+    login = os.getenv("SURPRISE_ADMIN_LOGIN", "").strip().lower()
     password = os.getenv("SURPRISE_ADMIN_PASSWORD", "").strip()
     name = os.getenv("SURPRISE_ADMIN_NAME", "Администратор").strip() or "Администратор"
 
