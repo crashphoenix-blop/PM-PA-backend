@@ -54,7 +54,7 @@ async def register(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User with this email or phone already exists",
+                detail="User with this email or phone already exists. Try logging in.",
             )
 
     user = User(

@@ -22,10 +22,14 @@ def _validate_phone(value: Optional[str]) -> Optional[str]:
     stripped = value.strip()
     if not stripped:
         return None
-    digits = sum(1 for ch in stripped if ch.isdigit())
-    if digits < 10:
+    digits = "".join(ch for ch in stripped if ch.isdigit())
+    if len(digits) < 10:
         raise ValueError("Phone must contain at least 10 digits")
-    return stripped
+    if len(digits) == 10:
+        return f"+7{digits}"
+    if len(digits) == 11 and (digits.startswith("7") or digits.startswith("8")):
+        return f"+7{digits[1:]}"
+    return f"+{digits}"
 
 
 class UserBase(BaseModel):
@@ -75,6 +79,15 @@ class AuthResponse(BaseModel):
 class LoginRequest(BaseModel):
     email_or_phone: str
     password: str
+
+    @field_validator("email_or_phone", mode="before")
+    @classmethod
+    def normalize_email_or_phone(cls, value: str) -> str:
+        normalized = (value or "").strip()
+        if "@" in normalized:
+            return normalized.lower()
+        phone = _validate_phone(normalized)
+        return phone or normalized
 
 
 class RefreshTokenRequest(BaseModel):
