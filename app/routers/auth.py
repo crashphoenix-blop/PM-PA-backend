@@ -51,13 +51,14 @@ async def register(
     - rate limiting,
     - хранение refresh-токенов в БД с возможностью отзыва.
     """
-    if payload.email or payload.phone:
-        stmt = select(User).where(
-            or_(
-                User.email == payload.email,
-                User.phone == payload.phone,
-            )
-        )
+    duplicate_conditions = []
+    if payload.email:
+        duplicate_conditions.append(func.lower(User.email) == payload.email.lower())
+    if payload.phone:
+        duplicate_conditions.append(User.phone == payload.phone)
+
+    if duplicate_conditions:
+        stmt = select(User).where(or_(*duplicate_conditions))
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()
         if existing:
