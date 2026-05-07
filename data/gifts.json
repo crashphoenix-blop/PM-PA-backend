@@ -550,15 +550,255 @@
             "storeURL": "https://market.yandex.ru/card/zerkalnyy-disko-shar-nlo-zolotoy/5261370090?do-waremd5=k4wbwSvqCUa4d89Rh1I_uQ&cpc=DVf7-yJulcJtrKaaAfIOYTpt3DJZFgqQ8Wl9Np9t8ECcnA4voMM4WMfTUXstoR9yP4agmOObR0Hi0-Soc-RTDlz7NYMVY8Kggswkgsbyma4lQRfvII0KhtRmRcW3d62fLl3cNvfetnY5v3_y-PqYUYux9cTqEm1M1DbA_6hp5uWUiH77gJiLPpa_QHUrMdfYVu8wKROdEhxcjSP0t4AWG7Sr-wnvoDC1HHOjmt1-fNPuqgRbjKtSPkOjpiDKbp0kciZJtrj-brfqS0e1qfycWaFOukAxOPb5YdxcWL5iICZKxin9d_uiwMSQRekTbYh0CdfdIOwlc2vv92uwhs_4nQL6CZUzTblPa-UZ1hhul80hezLC_i_WkiIsdT5Wy7wmZOvakYVh-8hqhwjbh0Gl5uR--A9mxJK67YDd5S_TI_cKkXj1S912u-7q4h0alEwY57jIHIXFgLHa67YymiI_Efl-2ezUiHMBE5tMecz4vm2DpFrmGDygD56KitdgJebU&nid=61426287&ogV=-12",
             "createdAt": "2024-01-01T00:00:00Z",
             "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 51,
+            "name": "LUNI 2.0",
+            "description": "Красивая укладка даже когда времени нет, а волосы не хотят слушаться.",
+            "price": 3700,
+            "imageURL": "https://i.pinimg.com/736x/25/98/cf/2598cf022e903f918c76815771437df9.jpg",
+            "storeName": "OZON",
+            "storeURL": "https://www.ozon.ru/product/luni-2-0-ployka-dlya-lokonov-avtomaticheskaya-stayler-dlya-zavivki-volos-3590445092/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
+        },
+        {
+            "id": 52,
+            "name": "Картхолдер MagSafe",
+            "description": "Для того самого друга, которому ничего не нужно.",
+            "price": 1300,
+            "imageURL": "https://avatars.mds.yandex.net/get-mpic/4410238/2a00000194278cdfcbd9e202c7230de18dc0/optimize",
+            "storeName": "Яндекс Маркет",
+            "storeURL": "https://market.yandex.ru/card/kartkholder-magsafe-dlya-apple-iphone--vizitnitsa-na-ayfon/103713305852",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 53,
+            "name": "Мото-прогулка",
+            "description": "Тренировка на кроссовом мотоцикле с инструктором для новичков.",
+            "price": 4000,
+            "imageURL": "https://bigfoto.top/uploads/posts/2022-10/1666584344_1-bigfoto-top-p-mototsiklov-v-lesu-2.jpg",
+            "storeName": "krossmoto",
+            "storeURL": "https://krossmoto.ru/katanie/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 54,
+            "name": "Игра Круг подруг",
+            "description": "Игра поможет узнать подруг и себя еще лучше.",
+            "price": 1500,
+            "imageURL": "https://optim.tildacdn.com/tild3233-6234-4934-b061-353564373139/-/format/webp/RBG_Ptenchiki_1865_0.jpg.webp",
+            "storeName": "ptenchiki",
+            "storeURL": "https://ptenchiki.shop/shop/girls_cards",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
+        },
+        {
+            "id": 55,
+            "name": "Автоматический диспенсер для пенного мыла",
+            "description": "Забавный диспенсер, держит заряд до 90 дней.",
+            "price": 1500,
+            "imageURL": "https://pcdn.goldapple.ru/p/p/19000309942/web/696d674d61696e5064708ddc59db13e7909fullhd.webp",
+            "storeName": "Золотое яблоко",
+            "storeURL": "https://goldapple.ru/19000309942-automatic-foam-dispenser-9-12",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [1, 2, 3, 4]
+        },
+        {
+            "id": 56,
+            "name": "Игра-исследование городов",
+            "description": "48 идей для прогулок в любом городе.",
+            "price": 2700,
+            "imageURL": "https://optim.tildacdn.com/tild3364-6135-4737-b361-343838336436/-/format/webp/digidi-2.JPG.webp",
+            "storeName": "digidi cards",
+            "storeURL": "https://digidicards.ru/401234321802-igra-issledovanie-gorodov",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [1, 2, 3, 4]
+        },
+        {
+            "id": 57,
+            "name": "Аудио открытка-кассета",
+            "description": "Запишите свое поздравление на кассету и подарите.",
+            "price": 600,
+            "imageURL": "https://img.freepik.com/premium-vector/collection-retro-cassette-tapes-vintage-cassette-tape-vector-illustration_67394-1322.jpg?w=2000",
+            "storeName": "OZON",
+            "storeURL": "https://www.ozon.ru/product/audio-otkrytka-kasseta-1843440242/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 58,
+            "name": "Маска Detstvo для лица",
+            "description": "Расслабляющая маска для лица с необычной подачей.",
+            "price": 690,
+            "imageURL": "https://predubezhdai.ru/images/resize:fill:1000:1200/aHR0cHM6Ly9iYzhlNGQ1Yi1kZmFjLTRjNTEtYjBjNi1mZGNmNDk5MGE1M2Yuc2Vsc3RvcmFnZS5ydS9EZXRzdHZvJTIwbWFzay9wcmUxLmpwZw==",
+            "storeName": "predubezhdai",
+            "storeURL": "https://predubezhdai.ru/product/mask-detstvo-98982401",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 59,
+            "name": "Кастомные спички",
+            "description": "Спичечный коробок с вашим фото.",
+            "price": 790,
+            "imageURL": "https://static.tildacdn.com/stor3365-3662-4034-b039-653930636164/81ac88915e1cadb6296716998e719f22.jpg",
+            "storeName": "notem",
+            "storeURL": "https://notem.ru/catalog/tproduct/2055326191-291210157122-spichki-s-vashim-foto#open",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [1, 2]
+        },
+        {
+            "id": 60,
+            "name": "Proraso Toccasana",
+            "description": "Набор для бритья для ежедневного использования.",
+            "price": 2900,
+            "imageURL": "https://pcdn.goldapple.ru/p/p/83510300005/web/696d674d61696e5064708ddc3f602400682fullhd.webp",
+            "storeName": "Золотое яблоко",
+            "storeURL": "https://goldapple.ru/83510300005-toccasana",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [3]
+        },
+        {
+            "id": 61,
+            "name": "Диффузор с вулканическими камнями",
+            "description": "Необычный интерьерный диффузор.",
+            "price": 2500,
+            "imageURL": "https://pcdn.goldapple.ru/p/p/19000264032/web/696d674d61696e5064705f6537666632376332636634613466623333353134396532623231323664648de93e5cb872838fullhd.webp",
+            "storeName": "Золотое яблоко",
+            "storeURL": "https://goldapple.ru/19000264032-sparkling-fruit",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
+        },
+        {
+            "id": 62,
+            "name": "Кубик рубика панелька",
+            "description": "Подарок для любителя урбанистики и эстетики панелек.",
+            "price": 1300,
+            "imageURL": "https://friendfunction.ru/upload/dev2fun.imagecompress/webp/iblock/a9e/dr7p9k8jpxmgqso61h41rnlr6bnk0uz2/kubik_rubika_s_printom_6.webp",
+            "storeName": "friend&function",
+            "storeURL": "https://friendfunction.ru/shop/zabavi/kubik-rubika-panelki/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 63,
+            "name": "Крепление для велосипеда",
+            "description": "Крепление телефона на руль для велопрогулок.",
+            "price": 2690,
+            "imageURL": "https://spigen.su/media/catalog/product/cache/f3020b7489dcfc4d1d147cf4dad07b7f/s/p/spigen-000cd20874-8809466649394-2.jpg",
+            "storeName": "spigen",
+            "storeURL": "https://spigen.su/kreplenie-velosipeda-spigen-a250-bike-mount-chernyj-000cd20874.html",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 64,
+            "name": "Моносерьга",
+            "description": "Стильный бунтарский аксессуар.",
+            "price": 5500,
+            "imageURL": "https://img.poisondrop.ru/upload/item_sku/img/desktop/90139_monoserga_mascot_frontalnoe_2x.jpeg",
+            "storeName": "poisondrop",
+            "storeURL": "https://poisondrop.ru/catalog/sergi/Krishe_Mono_Earring_MASCOT/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 65,
+            "name": "Вязаная сумка",
+            "description": "Яркая сумка ручной работы.",
+            "price": 2990,
+            "imageURL": "https://sun9-14.userapi.com/s/v1/ig2/ypT953FthKtnB7sCr8CaqnyR6lsrYlZn6QZ7Pa5_ErIak3Ow0spsFYycQi2ZjW3F8bVl7Lig_oSAA9spTbBBMlYA.jpg",
+            "storeName": "why not",
+            "storeURL": "https://t.me/whynot_21",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
+        },
+        {
+            "id": 66,
+            "name": "Складной стакан",
+            "description": "Компактный складной стакан для напитков с собой.",
+            "price": 500,
+            "imageURL": "https://ir.ozone.ru/s3/multimedia-1-z/c1000/7369408907.jpg",
+            "storeName": "Яндекс маркет",
+            "storeURL": "https://market.yandex.ru/card/stakan-skladnoy-s-kryshkoy-s-soboy-350-ml-8514-sm-tsvet-fistashkovyy/103203362479",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 67,
+            "name": "Шкатулка для украшений",
+            "description": "Красивый домик для любимых украшений.",
+            "price": 2500,
+            "imageURL": "https://pcdn.goldapple.ru/p/p/99000025819/web/696d67416464315064705f66623133323936303038316334633162393337663461363563653030323630628de04c5bb09a330fullhd.webp",
+            "storeName": "Золотое яблоко",
+            "storeURL": "https://goldapple.ru/99000025819-lavanda",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
+        },
+        {
+            "id": 68,
+            "name": "МК Настойки и витраж",
+            "description": "Создание настоек и кастом бутылок в арт-пространстве.",
+            "price": 4900,
+            "imageURL": "https://optim.tildacdn.com/stor3634-3239-4134-a262-653131313835/-/contain/996x1328/center/center/-/format/webp/63663758.jpg.webp",
+            "storeName": "квартира 67",
+            "storeURL": "https://kvartira-67.ru/event/tproduct/738668012272-nastoiki-i-vitrazh",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 69,
+            "name": "Тафтинг",
+            "description": "Мастер-класс по созданию ковра.",
+            "price": 3500,
+            "imageURL": "https://optim.tildacdn.com/stor6466-3162-4535-b834-376330313934/-/format/webp/62315025.jpg.webp",
+            "storeName": "хмечно",
+            "storeURL": "https://xmechno.ru/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 70,
+            "name": "Кастомная виниловая пластинка",
+            "description": "Пластинка с выбранными песнями и уникальным дизайном.",
+            "price": 3500,
+            "imageURL": "https://sun9-70.userapi.com/s/v1/ig2/-pHopj2ZmQmajaIcsWydGB1PuJaq1AKIO5Y71vKyYNWTvRnSi9UqZl3tH_05cQK7F7EjsfCSFqVC_7mWJKAw8Rx2.jpg",
+            "storeName": "vinylium",
+            "storeURL": "https://vinylium.ru/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [1, 2, 3, 4]
+        },
+        {
+            "id": 71,
+            "name": "Книга, написанная вами",
+            "description": "Книга о дорогом человеке с вашими воспоминаниями и фото.",
+            "price": 9000,
+            "imageURL": "https://sun9-31.userapi.com/s/v1/ig2/N6-RMi7pc7_8Q9QiOQIUkb99kLIdZ56yTe35qzTRd0wiXgMSWp7hmj-IColbSdNCXV8G_hgsPP7SI78NUqBrbB4o.jpg",
+            "storeName": "comabooks",
+            "storeURL": "https://comabooks.org/",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2, 3, 4]
+        },
+        {
+            "id": 72,
+            "name": "Колье ручной работы",
+            "description": "Авторское колье как акцентный аксессуар.",
+            "price": 2200,
+            "imageURL": "https://sun9-32.userapi.com/s/v1/ig2/myULi2LR5nk4PHsp2zqEd3lhoZqbUyT9kNHwxOQhop24ujkh7zvst-LuIg3O5pdba7wZGsCwhmW9-RkBdJDy2sWz.jpg",
+            "storeName": "faunfairstore",
+            "storeURL": "https://vk.com/faunfairstore",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "categoryIds": [2]
         }
     ],
     "categories": [
         { "id": 1, "name": "для пары" },
         { "id": 2, "name": "для неё" },
         { "id": 3, "name": "для него" },
-        { "id": 4, "name": "унисекс" },
-        { "id": 5, "name": "23 февраля" },
-        { "id": 6, "name": "14 февраля" }
+        { "id": 4, "name": "унисекс" }
     ]
 }
 

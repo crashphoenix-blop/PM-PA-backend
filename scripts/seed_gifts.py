@@ -75,6 +75,17 @@ async def upsert_categories(
     return result_map
 
 
+async def prune_categories(
+    session: AsyncSession,
+    category_records: list[dict],
+) -> None:
+    allowed_names = {record["name"].strip() for record in category_records if record.get("name")}
+    if not allowed_names:
+        return
+
+    await session.execute(delete(Category).where(~Category.name.in_(allowed_names)))
+
+
 async def upsert_gift(
     session: AsyncSession,
     item: dict,
@@ -136,6 +147,7 @@ async def seed(session: AsyncSession) -> None:
     gifts_data = data.get("gifts", [])
     categories_data = data.get("categories", [])
 
+    await prune_categories(session, categories_data)
     categories_by_json_id = await upsert_categories(session, categories_data)
 
     for item in gifts_data:

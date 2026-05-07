@@ -20,6 +20,7 @@ from app.core.settings import get_settings
 # ВАЖНО: импортируем все модели, чтобы они попали в Base.metadata.
 # Без этого autogenerate их "не увидит".
 from app.models import (  # noqa: F401
+    AnalyticsEvent,
     Category,
     Gift,
     GiftImage,

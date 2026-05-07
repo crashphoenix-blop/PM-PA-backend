@@ -19,6 +19,27 @@ FastAPI backend для проекта Surprise.
 
 Остальные можно оставить как есть.
 
+## Аналитика
+
+Реализован ingest-эндпоинт серверной аналитики:
+
+- `POST /analytics/events`
+
+Ожидаемые ключевые события:
+
+- `site_open`
+- `onboarding_completed`
+- `session_start`
+- `session_end` (`duration_seconds`)
+- `purchase_click` (`gift_id`, `surface`)
+- `favorite_click` (`gift_id`, `surface`, `action`)
+
+Данные сохраняются в таблицу `analytics_events` (миграция `0008`).
+
+Для Metabase подготовлен набор SQL-запросов по целевым метрикам:
+
+- `analytics/metabase_metrics.sql`
+
 ## Администратор
 
 При старте сервиса выполняется `scripts.ensure_admin`:
