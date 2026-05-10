@@ -53,7 +53,7 @@
             "storeName": "Октябрь",
             "storeURL": "https://oktyabrskateshop.com/product/dogu-series-hollow-85",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 5]
+            "categoryIds": [3]
         },
         {
             "id": 6,
@@ -97,7 +97,7 @@
             "storeName": "GRIDMIR",
             "storeURL": "https://gridmir.com/product/knizhnaya-oblozhka-s-vyshivkoy-maki",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [2, 3, 5]
+            "categoryIds": [2, 3]
         },
         {
             "id": 10,
@@ -130,7 +130,7 @@
             "storeName": "Paper Shoot",
             "storeURL": "https://papershoot.ru/sets-camera/tproduct/1241615796-577302976172-perfectionist-set",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [2, 3, 5, 6]
+            "categoryIds": [2, 3]
         },
         {
             "id": 13,
@@ -185,7 +185,7 @@
             "storeName": "KKSPACE",
             "storeURL": "https://www.kkspace.ru/product/pletenyy-keys-dlya-macbook",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [2, 3, 5]
+            "categoryIds": [2, 3]
         },
         {
             "id": 18,
@@ -196,7 +196,7 @@
             "storeName": "ScaleCarRu",
             "storeURL": "https://scalecar.ru/models/spark-red-bull-rb19-pobeditel-gp-las-vegas-chempion-mira-maxverstappen-2023-s8934.html",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 5]
+            "categoryIds": [3]
         },
         {
             "id": 19,
@@ -218,7 +218,7 @@
             "storeName": "Funko POP Russia",
             "storeURL": "https://funkopoprussia.com/music/kiss/ace-frehley-the-spaceman-gitd-funko-pop.html",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 5]
+            "categoryIds": [3]
         },
         {
             "id": 21,
@@ -251,7 +251,7 @@
             "storeName": "PurPur",
             "storeURL": "https://feelpurpur.com/closer#hot",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 6]
+            "categoryIds": [1]
         },
         {
             "id": 24,
@@ -262,7 +262,7 @@
             "storeName": "PurPur",
             "storeURL": "https://feelpurpur.com/game-2#hot",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 6]
+            "categoryIds": [1]
         },
         {
             "id": 25,
@@ -273,7 +273,7 @@
             "storeName": "kusochek moscow",
             "storeURL": "https://kusochek.tilda.ws/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [2, 4, 5, 6]
+            "categoryIds": [2, 4]
         },
         {
             "id": 26,
@@ -284,7 +284,7 @@
             "storeName": "PaperShoot",
             "storeURL": "https://papershoot.ru/paper-camera/tproduct/1208941196-624498454091-arabescato-corchia",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 6]
+            "categoryIds": [3]
         },
         
         {
@@ -296,7 +296,7 @@
             "storeName": "Femme Libre",
             "storeURL": "https://femmelibre.ru/main#masterclass",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 2, 6]
+            "categoryIds": [1, 2]
         },
         {
             "id": 28,
@@ -318,7 +318,7 @@
             "storeName": "Frame the Moment",
             "storeURL": "https://www.avito.ru/moskva/predlozheniya_uslug/podarok_zhene_-_ramka_s_figurkami_lego_7485411726?context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJ1R24ybDVKOThxTUc5S2hoIjt9bu6Ooj8AAAA",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 4, 5, 6]
+            "categoryIds": [1, 4]
         },
         {
             "id": 30,
@@ -329,7 +329,7 @@
             "storeName": "Vinyl",
             "storeURL": "https://vinyl.ru/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [4, 5, 6]
+            "categoryIds": [4]
         },
         {
             "id": 31,
@@ -340,7 +340,7 @@
             "storeName": "Незабудки",
             "storeURL": "https://nezabudky.ru/catalog/necklace/paw",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [ 4, 5, 6]
+            "categoryIds": [4]
         },
         {
             "id": 32,
@@ -351,7 +351,7 @@
             "storeName": "SurfWay",
             "storeURL": "https://surfway.ru/ocean-practice/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [ 4, 5]
+            "categoryIds": [4]
         },
         {
             "id": 33,
@@ -362,7 +362,7 @@
             "storeName": "Дом шоколада",
             "storeURL": "https://domchokolada.ru/menu/shokolad/plitki-shokolada/molochnyy-shokolad/molochnyy-shokolad-na-funduchnom-moloke-s-pastoy-iz-proroshchennogo-funduka/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [4, 5, 6]
+            "categoryIds": [4]
         },
         {
             "id": 34,
@@ -373,7 +373,7 @@
             "storeName": "Genotek",
             "storeURL": "https://www.genotek.ru/genetics/genome/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [4, 5, 6]
+            "categoryIds": [4]
         },
         {
             "id": 35,
@@ -395,7 +395,7 @@
             "storeName": "Novikov Space",
             "storeURL": "https://novikovspace.com/school/masterclasses",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 4, 5, 6]
+            "categoryIds": [1, 4]
         },
         {
             "id": 37,
@@ -406,7 +406,7 @@
             "storeName": "Shooting Academy",
             "storeURL": "https://shooting-soft.academy/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 5]
+            "categoryIds": [3]
         },
         {
             "id": 38,
@@ -417,7 +417,7 @@
             "storeName": "Яндекс Маркет",
             "storeURL": "https://market.yandex.ru/card/konstruktor-lego-architecture-21028-new-york-city/102098250504?do-waremd5=m3qYPBGfK1NMIj8CtS6bNA&cpc=QNv2TjuUeyv5W0MAzbKlRbCX2b8M5mLQ1KYkbvrIU8jKNypka1UDqvzV0qqoRgc6xDFeyGoYrpvbTSE6FjSIsA0e4o_844lwsaFQcLk6UIMBPsFUt68w6rll0_aQUlgfbMFuG9JmCbLUP5gu99n89pa3N07rDCfo1v2_2_LYI2ukY8w1rytLO8yxOeI2f-EoD_62_vAqRY1fVN6MomoG-cYKnw_GaDTw52rzjqMBixJYaHX134a-4V_09RT49AjlA8FMSnLc9uAJvcRNji06lU-kjzW8KkymNo1OenDuqXXaLuNxEHnIcl8xZTvvvqAajy6bfqnBai5_G02joUpwOvKWCPlxkDcXWmKCKxG-dj_-GZanygvioijwkPdZQKWPwRp1HUznYWsrhz6KAycd17T-tN6DRadsA5F7_rZ_8bJmyH3reGABY-RvH-YF3F9-zDxUYX5KlLWkOJAkP1XOyHDNXHuwQBB1FBNHJiCL8P-f7PjUiTQIow%2C%2C&nid=64108938&ogV=-12",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [4, 5, 6]
+            "categoryIds": [4]
         },
         {
             "id": 39,
@@ -428,7 +428,7 @@
             "storeName": "Patalaha(s)",
             "storeURL": "https://patalahas.store/dtf",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [3, 4, 5, 6]
+            "categoryIds": [3, 4]
         },
         {
             "id": 40,
@@ -439,7 +439,7 @@
             "storeName": "obereg ceramics",
             "storeURL": "https://www.avito.ru/sankt-peterburg/posuda_i_tovary_dlya_kuhni/tarelka_keramika_ruchnaya_rabota_s_vashim_tekstom_4082159363?slocation=621540&context=H4sIAAAAAAAA_wE_AMD_YToyOntzOjEzOiJsb2NhbFByaW9yaXR5IjtiOjA7czoxOiJ4IjtzOjE2OiJ3QlJBSEZHZDFQbFYzZUQwIjt9xJTcdD8AAAA/",
             "createdAt": "2024-01-01T00:00:00Z",
-            "categoryIds": [1, 4, 6]
+            "categoryIds": [1, 4]
         },
         {
             "id": 41,
