@@ -1,6 +1,5 @@
 from functools import lru_cache
 
-from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
 
 
@@ -10,11 +9,12 @@ class Settings(BaseSettings):
 
     Значения читаются из переменных окружения с префиксом SURPRISE_*
     и, опционально, из файла .env в корне backend-папки.
+
+    Локально без PostgreSQL: sqlite+aiosqlite:///./surprise.db (см. .env.example).
+    Прод: postgresql+asyncpg://...
     """
 
-    database_url: AnyUrl = (
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/surprise"
-    )
+    database_url: str = "sqlite+aiosqlite:///./surprise.db"
 
     jwt_secret_key: str = "dev_secret_key"
     jwt_algorithm: str = "HS256"

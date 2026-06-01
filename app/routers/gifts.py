@@ -1,13 +1,18 @@
+import imghdr
+import uuid
+from pathlib import Path
 from typing import List, Optional, Sequence
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.security import get_current_admin_user, get_current_user_optional
-from app.models import Category, Gift, GiftImage, User, favorites_table
+from app.ingestion.images import get_uploads_dir
+from app.models import Gift, User, favorites_table
 from app.schemas.gift import GiftCreate, GiftListResponse, GiftRead
+from app.services.gifts import create_gift_record
 
 router = APIRouter()
 
@@ -18,58 +23,24 @@ async def create_gift(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_admin_user),
 ) -> GiftRead:
-    categories: List[Category] = []
-    if payload.category_ids:
-        existing_by_id = await session.execute(
-            select(Category).where(Category.id.in_(payload.category_ids))
-        )
-        categories.extend(existing_by_id.scalars().all())
+    return await create_gift_record(session, payload)
 
-    for raw_name in payload.category_names:
-        normalized = raw_name.strip()
-        if not normalized:
-            continue
-        existing = await session.execute(
-            select(Category).where(func.lower(Category.name) == normalized.lower())
-        )
-        category = existing.scalar_one_or_none()
-        if category is None:
-            category = Category(name=normalized)
-            session.add(category)
-            await session.flush()
-        categories.append(category)
 
-    unique_categories: List[Category] = []
-    seen_ids: set[int] = set()
-    for category in categories:
-        if category.id in seen_ids:
-            continue
-        seen_ids.add(category.id)
-        unique_categories.append(category)
+@router.post("/upload-image")
+async def upload_gift_image(
+    file: UploadFile = File(...),
+    _: User = Depends(get_current_admin_user),
+) -> dict[str, str]:
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
 
-    gift = Gift(
-        name=payload.name,
-        description=payload.description,
-        price=payload.price,
-        image_url=str(payload.image_url),
-        store_name=payload.store_name,
-        store_url=str(payload.store_url) if payload.store_url else None,
-        categories=unique_categories,
-    )
-    session.add(gift)
-    await session.flush()
-
-    session.add(
-        GiftImage(
-            gift_id=gift.id,
-            url=str(payload.image_url),
-            sort_order=0,
-            is_primary=True,
-        )
-    )
-    await session.commit()
-    await session.refresh(gift)
-    return GiftRead.model_validate(gift, from_attributes=True)
+    kind = imghdr.what(None, content)
+    suffix = ".jpg" if kind == "jpeg" else f".{kind}" if kind else Path(file.filename or "").suffix or ".jpg"
+    filename = f"{uuid.uuid4().hex}{suffix}"
+    target = get_uploads_dir() / filename
+    target.write_bytes(content)
+    return {"image_url": f"/media/{filename}"}
 
 
 @router.get("/recommended", response_model=GiftListResponse)
