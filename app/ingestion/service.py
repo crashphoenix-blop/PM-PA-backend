@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -24,39 +23,37 @@ from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
 
 
-def _is_usable_description(text: Optional[str]) -> bool:
-    """Возвращает True если описание — читаемый текст, а не HTML-мусор или спеки."""
-    if not text or len(text.strip()) < 25:
-        return False
-    # HTML-энтити или теги — описание сырое
-    if re.search(r"&[a-z]+;|&#\d+;|<[^>]>", text):
-        return False
-    # Много буллетов — список характеристик, не описание
-    if text.count("•") + text.count("·") + text.count("&bull") > 1:
-        return False
-    # Обрезанный текст
-    if re.search(r"\.\.\.|…|еще$", text.strip()):
-        return False
-    return True
+async def _generate_gift_description(
+    name: str,
+    api_key: str,
+    folder_id: str,
+    raw_description: Optional[str] = None,
+) -> Optional[str]:
+    """Генерирует описание подарка через YandexGPT, используя сырой текст с сайта как контекст."""
+    context = ""
+    if raw_description:
+        # Передаём первые 500 символов с сайта как ориентир для ИИ
+        context = f"\nИнформация с сайта магазина (используй как основу): {raw_description[:500]}"
 
-
-async def _generate_gift_description(name: str, api_key: str, folder_id: str) -> Optional[str]:
-    """Генерирует короткое описание подарка через YandexGPT. Возвращает None при любой ошибке."""
     body = {
         "modelUri": f"gpt://{folder_id}/yandexgpt-lite/latest",
-        "completionOptions": {"stream": False, "temperature": 0.6, "maxTokens": "150"},
+        "completionOptions": {"stream": False, "temperature": 0.5, "maxTokens": "200"},
         "messages": [
             {
                 "role": "system",
                 "text": (
-                    "Ты копирайтер для магазина подарков. "
-                    "Пишешь короткие, тёплые и привлекательные описания товаров на русском языке. "
-                    "2–3 предложения. Без кавычек, без лишних символов."
+                    "Ты копирайтер для магазина подарков. Пишешь короткие, живые описания товаров.\n"
+                    "Примеры нужного стиля:\n"
+                    "— Кольцо ручной работы из эпоксидной смолы, усыпанное стеклянными стразами.\n"
+                    "— Ретро джемпер с клубничками. Согреет тебя изнутри и снаружи.\n"
+                    "— Керамическая чайная пара в розовом цвете. Объем 400 мл. Можно мыть в посудомоечной машине.\n"
+                    "Правила: 2–3 предложения. Только обычный текст — никаких маркеров, символов, HTML, тегов. "
+                    "Пиши на русском языке."
                 ),
             },
             {
                 "role": "user",
-                "text": f"Напиши описание для подарка: «{name}»",
+                "text": f"Напиши описание для подарка: «{name}»{context}",
             },
         ],
     }
@@ -210,12 +207,15 @@ async def _store_candidate(
         await session.flush()
         return False, True
 
-    # Генерируем описание через ИИ, если парсер не нашёл нормального текста
+    # AI всегда пишет описание, используя текст с сайта как контекст
     description = scraped.description
-    if not _is_usable_description(description) and settings and settings.yandex_api_key and settings.yandex_folder_id:
+    if settings and settings.yandex_api_key and settings.yandex_folder_id:
         description = await _generate_gift_description(
-            scraped.name, settings.yandex_api_key, settings.yandex_folder_id
-        )
+            scraped.name,
+            settings.yandex_api_key,
+            settings.yandex_folder_id,
+            raw_description=scraped.description,
+        ) or scraped.description
 
     candidate = GiftCandidate(
         source_id=source.id,
