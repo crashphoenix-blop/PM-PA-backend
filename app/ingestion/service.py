@@ -4,9 +4,11 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+import httpx
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.settings import get_settings
 from app.ingestion.config import (
     DEFAULT_SOURCES,
     collection_urls_from_json,
@@ -19,6 +21,43 @@ from app.ingestion.types import ScrapedGift
 from app.models import Gift, GiftCandidate, GiftSource, IngestionRun
 from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
+
+
+async def _generate_gift_description(name: str, api_key: str, folder_id: str) -> Optional[str]:
+    """Генерирует короткое описание подарка через YandexGPT. Возвращает None при любой ошибке."""
+    body = {
+        "modelUri": f"gpt://{folder_id}/yandexgpt-lite/latest",
+        "completionOptions": {"stream": False, "temperature": 0.6, "maxTokens": "150"},
+        "messages": [
+            {
+                "role": "system",
+                "text": (
+                    "Ты копирайтер для магазина подарков. "
+                    "Пишешь короткие, тёплые и привлекательные описания товаров на русском языке. "
+                    "2–3 предложения. Без кавычек, без лишних символов."
+                ),
+            },
+            {
+                "role": "user",
+                "text": f"Напиши описание для подарка: «{name}»",
+            },
+        ],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+                headers={
+                    "Authorization": f"Api-Key {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
+            )
+            resp.raise_for_status()
+        text = resp.json()["result"]["alternatives"][0]["message"]["text"].strip()
+        return text or None
+    except Exception:
+        return None
 
 
 def _max_per_run() -> int:
@@ -72,6 +111,7 @@ async def run_ingestion(
     session.add(run)
     await session.flush()
 
+    settings = get_settings()
     total_limit = _max_per_run()
     source_limit = _per_source_limit(total_limit, len(sources))
     found = 0
@@ -105,6 +145,7 @@ async def run_ingestion(
                 source=source,
                 run=run,
                 scraped=scraped,
+                settings=settings,
             )
             if is_duplicate:
                 duplicate_count += 1
@@ -129,6 +170,7 @@ async def _store_candidate(
     source: GiftSource,
     run: IngestionRun,
     scraped: ScrapedGift,
+    settings=None,
 ) -> tuple[bool, bool]:
     dedup_key = build_dedup_key(scraped.store_url, source.base_url)
     duplicate_reason = await _detect_duplicate(session, dedup_key)
@@ -151,12 +193,19 @@ async def _store_candidate(
         await session.flush()
         return False, True
 
+    # Генерируем описание через ИИ, если парсер не нашёл своё
+    description = scraped.description
+    if not description and settings and settings.yandex_api_key and settings.yandex_folder_id:
+        description = await _generate_gift_description(
+            scraped.name, settings.yandex_api_key, settings.yandex_folder_id
+        )
+
     candidate = GiftCandidate(
         source_id=source.id,
         run_id=run.id,
         dedup_key=dedup_key,
         name=scraped.name[:255],
-        description=scraped.description,
+        description=description,
         price=scraped.price,
         image_url=scraped.image_url,
         store_name=scraped.store_name,
