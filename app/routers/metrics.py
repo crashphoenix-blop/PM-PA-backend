@@ -39,9 +39,9 @@ WITH cycles (ord, cycle, period, d_start, d_end) AS (
 ev AS (
     SELECT
         c.ord,
-        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'csat_submit')            AS respondents,
+        SUM((e.payload->>'respondents_on_day')::int) FILTER (WHERE e.event_name = 'daily_summary') AS respondents,
+        AVG((e.payload->>'avg_saved_gifts_per_user')::numeric) FILTER (WHERE e.event_name = 'daily_summary') AS avg_saved_per_user,
         COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'favorite_click')         AS saved_users,
-        COUNT(*)                  FILTER (WHERE e.event_name = 'favorite_click')         AS favorite_events,
         COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'purchase_click')         AS seller_users,
         COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'price_filter_apply')     AS price_filter_users,
         COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'ai_helper_open')         AS ai_users,
@@ -73,7 +73,7 @@ SELECT
     ev.final_gift_selected                                             AS "final gift selected",
     ROUND(ev.csat, 2)                                                  AS "CSAT",
     ROUND((ev.avg_time_sec / 60.0)::numeric, 2)                        AS "avg time, min",
-    ROUND(ev.favorite_events::numeric / NULLIF(ev.saved_users, 0), 2)  AS "avg saved gifts/user",
+    ROUND(ev.avg_saved_per_user, 2)                                    AS "avg saved gifts/user",
     ROUND(ev.d3_retention::numeric, 2)                                 AS "D3 retention",
     (SELECT COUNT(*) FROM users u
         WHERE u.is_admin = false AND u.created_at <= c.d_end)          AS "cumulative uniques at end"
@@ -112,7 +112,11 @@ agg AS (
         ROUND(AVG((e.payload->>'score')::numeric) FILTER (WHERE e.event_name = 'csat_submit'), 2) AS csat_score,
         ROUND((AVG(e.duration_seconds) FILTER (WHERE e.event_name = 'session_end') / 60.0)::numeric, 2) AS avg_time_spent_min,
         ROUND(AVG(CASE WHEN e.payload->>'returned_d3' = 'true' THEN 1.0 ELSE 0 END)
-            FILTER (WHERE e.event_name = 'retention_cohort'), 2)                 AS retention_d3_cohort_rate
+            FILTER (WHERE e.event_name = 'retention_cohort'), 2)                 AS retention_d3_cohort_rate,
+        MAX((e.payload->>'respondents_on_day')::int)
+            FILTER (WHERE e.event_name = 'daily_summary')                        AS respondents_on_day,
+        MAX((e.payload->>'avg_saved_gifts_per_user')::numeric)
+            FILTER (WHERE e.event_name = 'daily_summary')                        AS avg_saved_gifts_per_user
     FROM days
     LEFT JOIN analytics_events e
         ON (e.event_time AT TIME ZONE 'UTC')::date = days.d
@@ -120,6 +124,7 @@ agg AS (
 )
 SELECT
     a.day AS "date",
+    a.respondents_on_day,
     (SELECT COUNT(*) FROM users u
         WHERE u.is_admin = false AND (u.created_at AT TIME ZONE 'UTC')::date = a.day)  AS "new_users",
     a.dau - (SELECT COUNT(*) FROM users u
@@ -135,6 +140,7 @@ SELECT
     a.onboarding_completed_users,
     a.favorite_add_events,
     a.users_saved_gift,
+    a.avg_saved_gifts_per_user,
     a.purchase_click_events,
     a.users_clicked_seller,
     a.completed_purchase_users,

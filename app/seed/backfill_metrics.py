@@ -177,6 +177,19 @@ async def run_backfill(session: AsyncSession, wipe: bool = True) -> Dict[str, ob
 
     for d in DAILY:
         day: date = d["date"]
+
+        # Daily aggregate marker (no user): stores the sheet's respondents_on_day
+        # and avg_saved_gifts_per_user so both can be read straight from the DB.
+        add_event(
+            "daily_summary",
+            _dt(day, 23, 0, 0),
+            None,
+            payload={
+                "respondents_on_day": d["respondents_on_day"],
+                "avg_saved_gifts_per_user": d["avg_saved_gifts_per_user"],
+            },
+        )
+
         # today's new users (slice of cohort created on this day)
         new_today = [c for c in cohort if c["created"] == day]
         pool_before = [c["user"] for c in created_before]
