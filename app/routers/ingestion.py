@@ -139,24 +139,21 @@ async def reindex_embeddings(
     if not settings.yandex_api_key or not settings.yandex_folder_id:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Yandex API не настроен")
 
-    # Диагностический вызов первого эмбеддинга без перехвата ошибок
-    import httpx as _httpx
-    async with _httpx.AsyncClient(timeout=15.0) as _client:
-        _resp = await _client.post(
-            "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding",
-            headers={"Authorization": f"Api-Key {settings.yandex_api_key}", "Content-Type": "application/json"},
-            json={"modelUri": f"emb://{settings.yandex_folder_id}/text-search-doc/latest", "text": "тест"},
-        )
-    if not _resp.is_success:
-        raise HTTPException(status_code=502, detail=f"Yandex API error {_resp.status_code}: {_resp.text[:500]}")
+    import asyncio as _asyncio
 
     gifts_result = await session.execute(select(Gift).options(selectinload(Gift.categories)))
     gifts = gifts_result.scalars().all()
 
+    # Пропускаем уже проиндексированные
+    existing_ids_result = await session.execute(select(GiftEmbedding.gift_id))
+    existing_ids = set(existing_ids_result.scalars().all())
+    gifts_to_index = [g for g in gifts if g.id not in existing_ids]
+
     indexed = 0
     failed = 0
     first_error: str = ""
-    for gift in gifts:
+    for gift in gifts_to_index:
+        await _asyncio.sleep(0.25)  # 4 запроса в секунду, не превышаем лимит
         try:
             cat_names = [c.name for c in gift.categories]
             text = gift_to_embedding_text(gift.name, gift.description or "", cat_names)
@@ -164,12 +161,8 @@ async def reindex_embeddings(
                 text, "text-search-doc", settings.yandex_api_key, settings.yandex_folder_id
             )
             if embedding:
-                ge = await session.get(GiftEmbedding, gift.id)
-                if ge is None:
-                    ge = GiftEmbedding(gift_id=gift.id, embedding_json=json.dumps(embedding))
-                    session.add(ge)
-                else:
-                    ge.embedding_json = json.dumps(embedding)
+                ge = GiftEmbedding(gift_id=gift.id, embedding_json=json.dumps(embedding))
+                session.add(ge)
                 await session.flush()
                 indexed += 1
             else:
@@ -182,7 +175,8 @@ async def reindex_embeddings(
             failed += 1
 
     await session.commit()
-    return {"indexed": indexed, "failed": failed, "total": len(gifts), "first_error": first_error}
+    already = len(gifts) - len(gifts_to_index)
+    return {"indexed": indexed, "already_indexed": already, "failed": failed, "total": len(gifts), "first_error": first_error}
 
 
 @router.post("/candidates/{candidate_id}/reject", response_model=GiftCandidateRead)
