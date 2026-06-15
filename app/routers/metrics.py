@@ -82,6 +82,73 @@ JOIN ev ON ev.ord = c.ord
 ORDER BY c.ord
 """
 
+# Per-day metrics (no cycle columns). One row per calendar day of MVP testing.
+DAILY_METRICS_SQL = """
+WITH days AS (
+    SELECT generate_series(DATE '2026-05-01', DATE '2026-06-15', INTERVAL '1 day')::date AS d
+),
+agg AS (
+    SELECT
+        days.d AS day,
+        COUNT(DISTINCT COALESCE('u' || e.user_id::text, e.anonymous_id))
+            FILTER (WHERE e.event_name = 'session_start')                       AS dau,
+        COUNT(DISTINCT e.user_id)
+            FILTER (WHERE e.event_name = 'session_start' AND e.user_id IS NOT NULL) AS logged_in_users,
+        COUNT(DISTINCT e.anonymous_id)
+            FILTER (WHERE e.event_name = 'session_start' AND e.user_id IS NULL)  AS anonymous_users,
+        COUNT(*) FILTER (WHERE e.event_name = 'site_open')                       AS site_open_events,
+        COUNT(*) FILTER (WHERE e.event_name = 'session_start')                   AS session_start_events,
+        COUNT(*) FILTER (WHERE e.event_name = 'session_end')                     AS session_end_events,
+        COUNT(*) FILTER (WHERE e.event_name = 'onboarding_completed')            AS onboarding_completed_users,
+        COUNT(*) FILTER (WHERE e.event_name = 'favorite_click')                  AS favorite_add_events,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'favorite_click') AS users_saved_gift,
+        COUNT(*) FILTER (WHERE e.event_name = 'purchase_click')                  AS purchase_click_events,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'purchase_click') AS users_clicked_seller,
+        COUNT(*) FILTER (WHERE e.event_name = 'completed_purchase')              AS completed_purchase_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'price_filter_apply')      AS price_filter_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'ai_helper_open')          AS ai_helper_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'ai_recommendation_save')  AS ai_recommendation_save_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'final_gift_selected')     AS final_gift_selected_users,
+        ROUND(AVG((e.payload->>'score')::numeric) FILTER (WHERE e.event_name = 'csat_submit'), 2) AS csat_score,
+        ROUND((AVG(e.duration_seconds) FILTER (WHERE e.event_name = 'session_end') / 60.0)::numeric, 2) AS avg_time_spent_min,
+        ROUND(AVG(CASE WHEN e.payload->>'returned_d3' = 'true' THEN 1.0 ELSE 0 END)
+            FILTER (WHERE e.event_name = 'retention_cohort'), 2)                 AS retention_d3_cohort_rate
+    FROM days
+    LEFT JOIN analytics_events e
+        ON (e.event_time AT TIME ZONE 'UTC')::date = days.d
+    GROUP BY days.d
+)
+SELECT
+    a.day AS "date",
+    (SELECT COUNT(*) FROM users u
+        WHERE u.is_admin = false AND (u.created_at AT TIME ZONE 'UTC')::date = a.day)  AS "new_users",
+    a.dau - (SELECT COUNT(*) FROM users u
+        WHERE u.is_admin = false AND (u.created_at AT TIME ZONE 'UTC')::date = a.day)  AS "returning_users",
+    a.dau                                                                             AS "dau",
+    (SELECT COUNT(*) FROM users u
+        WHERE u.is_admin = false AND (u.created_at AT TIME ZONE 'UTC')::date <= a.day) AS "cumulative_unique_users",
+    a.logged_in_users,
+    a.anonymous_users,
+    a.site_open_events,
+    a.session_start_events,
+    a.session_end_events,
+    a.onboarding_completed_users,
+    a.favorite_add_events,
+    a.users_saved_gift,
+    a.purchase_click_events,
+    a.users_clicked_seller,
+    a.completed_purchase_users,
+    a.price_filter_users,
+    a.ai_helper_users,
+    a.ai_recommendation_save_users,
+    a.final_gift_selected_users,
+    a.csat_score,
+    a.avg_time_spent_min,
+    a.retention_d3_cohort_rate
+FROM agg a
+ORDER BY a.day
+"""
+
 
 def _cycle_ranges() -> Dict[str, tuple]:
     """Derive (start, end) UTC datetimes for each testing cycle from the sheet."""
@@ -121,6 +188,24 @@ async def cycle_summary_sql(
     for m in result.mappings().all():
         rows.append({k: (float(v) if isinstance(v, Decimal) else v) for k, v in m.items()})
     return {"sql": CYCLE_SUMMARY_SQL.strip(), "rows": rows}
+
+
+@router.get("/daily-sql")
+async def daily_sql(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(get_current_admin_user),
+) -> dict:
+    """Run the pgAdmin per-day metrics query and return its rows for validation."""
+    result = await session.execute(text(DAILY_METRICS_SQL))
+    rows = []
+    for m in result.mappings().all():
+        rows.append(
+            {
+                k: (float(v) if isinstance(v, Decimal) else (v.isoformat() if hasattr(v, "isoformat") else v))
+                for k, v in m.items()
+            }
+        )
+    return {"rows": rows}
 
 
 @router.get("/summary")
