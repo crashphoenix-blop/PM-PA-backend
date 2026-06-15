@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 
+    yandex_api_key: str = ""
+    yandex_folder_id: str = ""
+
     class Config:
         env_prefix = "SURPRISE_"
         env_file = ".env"

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.ingestion.images import get_uploads_dir
-from app.routers import analytics, auth, categories, favorites, gifts, ingestion, users
+from app.routers import ai, analytics, auth, categories, favorites, gifts, ingestion, users
 
 
 def create_app() -> FastAPI:
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     )
 
     # Routers
+    app.include_router(ai.router, prefix="/ai", tags=["ai"])
     app.include_router(auth.router, prefix="/auth", tags=["auth"])
     app.include_router(users.router, prefix="/users", tags=["users"])
     app.include_router(categories.router, prefix="/categories", tags=["categories"])
