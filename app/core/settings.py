@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     yandex_api_key: str = ""
     yandex_folder_id: str = ""
+    anthropic_api_key: str = ""
 
     class Config:
         env_prefix = "SURPRISE_"

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import httpx
+from bs4 import BeautifulSoup
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,7 @@ from app.ingestion.config import (
     collection_urls_from_json,
     collection_urls_to_json,
 )
+from app.ingestion.http_client import DEFAULT_HEADERS
 from app.ingestion.images import download_image_to_media
 from app.ingestion.normalize import build_dedup_key
 from app.ingestion.parsers import PARSERS
@@ -22,56 +25,116 @@ from app.models import Gift, GiftCandidate, GiftSource, IngestionRun
 from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
 
+_DESCRIPTION_STYLE = (
+    "Ты копирайтер для магазина подарков SURPRISE. Пишешь короткие, живые описания.\n"
+    "Примеры нужного стиля:\n"
+    "— Кольцо ручной работы из эпоксидной смолы, усыпанное стеклянными стразами.\n"
+    "— Ретро джемпер с клубничками. Согреет тебя изнутри и снаружи.\n"
+    "— Керамическая чайная пара в розовом цвете. Объём 400 мл. Можно мыть в посудомоечной машине.\n"
+    "— Игра Пурпур Отношения — «Легальный» способ задать волнующие вопросы и понять друг друга.\n"
+    "Правила: 2–3 предложения. Только обычный текст — никаких маркеров, HTML, символов. Пиши на русском языке."
+)
+
+
+async def _fetch_product_page_text(url: str) -> str:
+    """Загружает страницу продавца и извлекает читаемый текстовый контент."""
+    try:
+        async with httpx.AsyncClient(
+            headers=DEFAULT_HEADERS, follow_redirects=True, timeout=20.0
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            html = resp.text
+
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside", "iframe"]):
+            tag.decompose()
+
+        text = soup.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", text)
+        return text[:3000]
+    except Exception:
+        return ""
+
 
 async def _generate_gift_description(
     name: str,
-    api_key: str,
-    folder_id: str,
-    raw_description: Optional[str] = None,
+    image_url: str,
+    store_url: str,
+    yandex_api_key: str,
+    yandex_folder_id: str,
+    anthropic_api_key: str = "",
 ) -> Optional[str]:
-    """Генерирует описание подарка через YandexGPT, используя сырой текст с сайта как контекст."""
-    context = ""
-    if raw_description:
-        # Передаём первые 500 символов с сайта как ориентир для ИИ
-        context = f"\nИнформация с сайта магазина (используй как основу): {raw_description[:500]}"
+    """
+    Генерирует описание подарка:
+    1. Загружает страницу продавца и анализирует полный текст
+    2. Анализирует изображение товара через Claude Haiku (если ключ есть)
+    3. Fallback — YandexGPT только с текстом
+    """
+    page_text = await _fetch_product_page_text(store_url)
 
-    body = {
-        "modelUri": f"gpt://{folder_id}/yandexgpt-lite/latest",
-        "completionOptions": {"stream": False, "temperature": 0.5, "maxTokens": "200"},
-        "messages": [
-            {
-                "role": "system",
-                "text": (
-                    "Ты копирайтер для магазина подарков. Пишешь короткие, живые описания товаров.\n"
-                    "Примеры нужного стиля:\n"
-                    "— Кольцо ручной работы из эпоксидной смолы, усыпанное стеклянными стразами.\n"
-                    "— Ретро джемпер с клубничками. Согреет тебя изнутри и снаружи.\n"
-                    "— Керамическая чайная пара в розовом цвете. Объем 400 мл. Можно мыть в посудомоечной машине.\n"
-                    "Правила: 2–3 предложения. Только обычный текст — никаких маркеров, символов, HTML, тегов. "
-                    "Пиши на русском языке."
-                ),
-            },
-            {
-                "role": "user",
-                "text": f"Напиши описание для подарка: «{name}»{context}",
-            },
-        ],
-    }
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-                headers={
-                    "Authorization": f"Api-Key {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=body,
+    user_prompt = (
+        f"Товар: «{name}»\n\n"
+        f"Текст со страницы продавца:\n{page_text}\n\n"
+        "На основе изображения и текста напиши краткое описание в нашем стиле."
+    )
+
+    # ── Попытка 1: Claude Haiku с картинкой + текстом страницы ──────────────
+    if anthropic_api_key and image_url.startswith("http"):
+        try:
+            from anthropic import AsyncAnthropic
+            client = AsyncAnthropic(api_key=anthropic_api_key)
+            message = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=250,
+                system=_DESCRIPTION_STYLE,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {"type": "url", "url": image_url},
+                            },
+                            {"type": "text", "text": user_prompt},
+                        ],
+                    }
+                ],
             )
-            resp.raise_for_status()
-        text = resp.json()["result"]["alternatives"][0]["message"]["text"].strip()
-        return text or None
-    except Exception:
-        return None
+            text = message.content[0].text.strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+    # ── Попытка 2: YandexGPT только с текстом страницы ──────────────────────
+    if yandex_api_key and yandex_folder_id:
+        body = {
+            "modelUri": f"gpt://{yandex_folder_id}/yandexgpt-lite/latest",
+            "completionOptions": {"stream": False, "temperature": 0.5, "maxTokens": "200"},
+            "messages": [
+                {"role": "system", "text": _DESCRIPTION_STYLE},
+                {"role": "user", "text": user_prompt},
+            ],
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+                    headers={
+                        "Authorization": f"Api-Key {yandex_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
+                )
+                resp.raise_for_status()
+            text = resp.json()["result"]["alternatives"][0]["message"]["text"].strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+    return None
 
 
 def _max_per_run() -> int:
@@ -207,14 +270,16 @@ async def _store_candidate(
         await session.flush()
         return False, True
 
-    # AI всегда пишет описание, используя текст с сайта как контекст
+    # AI анализирует страницу продавца + изображение и пишет описание
     description = scraped.description
-    if settings and settings.yandex_api_key and settings.yandex_folder_id:
+    if settings and (settings.anthropic_api_key or (settings.yandex_api_key and settings.yandex_folder_id)):
         description = await _generate_gift_description(
-            scraped.name,
-            settings.yandex_api_key,
-            settings.yandex_folder_id,
-            raw_description=scraped.description,
+            name=scraped.name,
+            image_url=scraped.image_url,
+            store_url=scraped.store_url,
+            yandex_api_key=settings.yandex_api_key,
+            yandex_folder_id=settings.yandex_folder_id,
+            anthropic_api_key=settings.anthropic_api_key,
         ) or scraped.description
 
     candidate = GiftCandidate(
