@@ -139,14 +139,14 @@ async def reindex_embeddings(
     if not settings.yandex_api_key or not settings.yandex_folder_id:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Yandex API не настроен")
 
-    gifts_result = await session.execute(select(Gift))
+    gifts_result = await session.execute(select(Gift).options(selectinload(Gift.categories)))
     gifts = gifts_result.scalars().all()
 
     indexed = 0
     failed = 0
     for gift in gifts:
         try:
-            cat_names = [c.name for c in gift.categories] if gift.categories else []
+            cat_names = [c.name for c in gift.categories]
             text = gift_to_embedding_text(gift.name, gift.description or "", cat_names)
             embedding = await get_yandex_embedding(
                 text, "text-search-doc", settings.yandex_api_key, settings.yandex_folder_id
