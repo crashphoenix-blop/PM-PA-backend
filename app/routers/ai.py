@@ -16,6 +16,9 @@ from app.schemas.gift import GiftRead
 
 router = APIRouter()
 
+# IDs подарков со срочной доставкой (совпадают с URGENT_IDS на фронтенде)
+URGENT_GIFT_IDS = {18, 19, 20, 21, 22, 29, 35, 39, 48, 50, 53, 57, 66, 68, 79}
+
 # Границы бюджета по тексту чипа
 _BUDGET_MAP = {
     "до 2 000": (0, 2000),
@@ -33,19 +36,36 @@ def _parse_budget(budget: str) -> tuple[int, Optional[int]]:
     return 0, None
 
 
-def _build_prompt(recipient: str, occasion: str, budget: str, style: str, gifts: list) -> str:
+def _build_prompt(
+    recipient: str,
+    occasion: str,
+    budget: str,
+    style: str,
+    gifts: list,
+    age_group: str = "",
+    interests: str = "",
+) -> str:
     lines = [
         f"[{g.id}] \"{g.name}\" — {int(g.price)}₽"
         + (f" — [{', '.join(c.name for c in g.categories)}]" if g.categories else "")
         for g in gifts
     ]
     catalog = "\n".join(lines)
-    return (
-        f"Пользователь ищет подарок.\n"
+
+    context = (
         f"Кому: {recipient}\n"
         f"Повод: {occasion}\n"
         f"Бюджет: {budget}\n"
-        f"Стиль: {style}\n\n"
+        f"Стиль: {style}"
+    )
+    if age_group:
+        context += f"\nВозраст получателя: {age_group}"
+    if interests:
+        context += f"\nИнтересы: {interests}"
+
+    return (
+        f"Пользователь ищет подарок.\n"
+        f"{context}\n\n"
         f"Каталог (ID, название, цена, категории):\n{catalog}\n\n"
         f"Выбери 6–10 подарков, которые лучше всего подходят. "
         f"Верни ТОЛЬКО JSON-массив ID без пояснений, например: [3, 17, 42]"
@@ -98,16 +118,32 @@ async def recommend_gifts(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ) -> AIRecommendResponse:
     settings = get_settings()
-    min_price, max_price = _parse_budget(payload.budget)
+    budget_expanded = False
 
-    conditions = [Gift.price >= min_price]
-    if max_price is not None:
-        conditions.append(Gift.price <= max_price)
+    if payload.is_urgent:
+        # Срочные подарки — фиксированный набор ID, бюджет игнорируется
+        result = await session.execute(
+            select(Gift).where(Gift.id.in_(URGENT_GIFT_IDS)).order_by(Gift.created_at.desc())
+        )
+        candidates = list(result.scalars().all())
+    else:
+        min_price, max_price = _parse_budget(payload.budget)
+        conditions = [Gift.price >= min_price]
+        if max_price is not None:
+            conditions.append(Gift.price <= max_price)
 
-    result = await session.execute(
-        select(Gift).where(and_(*conditions)).order_by(Gift.created_at.desc())
-    )
-    candidates = list(result.scalars().all())
+        result = await session.execute(
+            select(Gift).where(and_(*conditions)).order_by(Gift.created_at.desc())
+        )
+        candidates = list(result.scalars().all())
+
+        # Если в выбранном бюджете мало вариантов — расширяем до всего каталога
+        if len(candidates) < 6:
+            result = await session.execute(
+                select(Gift).order_by(Gift.created_at.desc())
+            )
+            candidates = list(result.scalars().all())
+            budget_expanded = True
 
     selected_ids: List[int] = []
 
@@ -119,6 +155,8 @@ async def recommend_gifts(
                 payload.budget,
                 payload.style,
                 candidates,
+                age_group=payload.age_group,
+                interests=payload.interests,
             )
             ai_text = await _call_yandex_gpt(
                 prompt, settings.yandex_api_key, settings.yandex_folder_id
@@ -150,4 +188,4 @@ async def recommend_gifts(
         for g in ordered
     ]
 
-    return AIRecommendResponse(gifts=gifts_read)
+    return AIRecommendResponse(gifts=gifts_read, budget_expanded=budget_expanded)

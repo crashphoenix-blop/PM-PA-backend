@@ -8,7 +8,11 @@ class AIQuestionnaireRequest(BaseModel):
     occasion: str
     budget: str
     style: str
+    is_urgent: bool = False
+    age_group: str = ""
+    interests: str = ""
 
 
 class AIRecommendResponse(BaseModel):
     gifts: List[GiftRead]
+    budget_expanded: bool = False
