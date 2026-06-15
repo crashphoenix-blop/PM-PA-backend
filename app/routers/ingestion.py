@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,14 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.db import get_session
+from app.core.embeddings import get_yandex_embedding, gift_to_embedding_text
 from app.core.security import get_current_admin_user
+from app.core.settings import get_settings
 from app.ingestion.service import (
     approve_candidate,
     clear_ingestion_results,
     reject_candidate,
     run_ingestion,
 )
-from app.models import GiftCandidate, GiftSource, IngestionRun, User
+from app.models import Gift, GiftCandidate, GiftEmbedding, GiftSource, IngestionRun, User
 from app.schemas.ingestion import (
     CandidateApproveRequest,
     GiftCandidateListResponse,
@@ -124,6 +127,46 @@ async def approve_gift_candidate(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     source = await session.get(GiftSource, candidate.source_id)
     return _to_candidate_read(candidate, source)
+
+
+@router.post("/reindex-embeddings")
+async def reindex_embeddings(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(get_current_admin_user),
+) -> dict:
+    """Генерирует (или обновляет) эмбеддинги для всех подарков в каталоге."""
+    settings = get_settings()
+    if not settings.yandex_api_key or not settings.yandex_folder_id:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Yandex API не настроен")
+
+    gifts_result = await session.execute(select(Gift))
+    gifts = gifts_result.scalars().all()
+
+    indexed = 0
+    failed = 0
+    for gift in gifts:
+        try:
+            cat_names = [c.name for c in gift.categories] if gift.categories else []
+            text = gift_to_embedding_text(gift.name, gift.description or "", cat_names)
+            embedding = await get_yandex_embedding(
+                text, "text-search-doc", settings.yandex_api_key, settings.yandex_folder_id
+            )
+            if embedding:
+                ge = await session.get(GiftEmbedding, gift.id)
+                if ge is None:
+                    ge = GiftEmbedding(gift_id=gift.id, embedding_json=json.dumps(embedding))
+                    session.add(ge)
+                else:
+                    ge.embedding_json = json.dumps(embedding)
+                await session.flush()
+                indexed += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+    await session.commit()
+    return {"indexed": indexed, "failed": failed, "total": len(gifts)}
 
 
 @router.post("/candidates/{candidate_id}/reject", response_model=GiftCandidateRead)

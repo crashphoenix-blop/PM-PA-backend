@@ -22,7 +22,8 @@ from app.ingestion.images import download_image_to_media
 from app.ingestion.normalize import build_dedup_key
 from app.ingestion.parsers import PARSERS
 from app.ingestion.types import ScrapedGift
-from app.models import Gift, GiftCandidate, GiftSource, IngestionRun
+from app.core.embeddings import get_yandex_embedding, gift_to_embedding_text
+from app.models import Gift, GiftCandidate, GiftEmbedding, GiftSource, IngestionRun
 from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
 
@@ -372,6 +373,28 @@ async def approve_candidate(
     candidate.reviewed_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(candidate)
+
+    # Генерируем эмбеддинг для семантического поиска (fire-and-forget, не блокируем ответ)
+    try:
+        emb_settings = get_settings()
+        if emb_settings.yandex_api_key and emb_settings.yandex_folder_id:
+            cat_names = [c.name for c in gift.categories]
+            text = gift_to_embedding_text(gift.name, gift.description or "", cat_names)
+            embedding = await get_yandex_embedding(
+                text, "text-search-doc", emb_settings.yandex_api_key, emb_settings.yandex_folder_id
+            )
+            if embedding:
+                ge = await session.get(GiftEmbedding, gift.id)
+                if ge is None:
+                    ge = GiftEmbedding(gift_id=gift.id, embedding_json=json.dumps(embedding))
+                    session.add(ge)
+                else:
+                    ge.embedding_json = json.dumps(embedding)
+                    ge.updated_at = datetime.now(timezone.utc)
+                await session.commit()
+    except Exception:
+        pass
+
     return candidate
 
 

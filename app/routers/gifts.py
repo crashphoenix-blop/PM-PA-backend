@@ -1,4 +1,5 @@
 import imghdr
+import json
 import uuid
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -8,9 +9,11 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
+from app.core.embeddings import cosine_similarity, get_yandex_embedding, parse_embedding
 from app.core.security import get_current_admin_user, get_current_user_optional
+from app.core.settings import get_settings
 from app.ingestion.images import get_uploads_dir
-from app.models import Gift, User, favorites_table
+from app.models import Category, Gift, GiftEmbedding, User, favorites_table
 from app.schemas.gift import GiftCreate, GiftListResponse, GiftRead
 from app.services.gifts import create_gift_record
 
@@ -128,17 +131,55 @@ async def search_gifts(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ) -> GiftListResponse:
     """
-    Поиск по названию и описанию (ILIKE с экранированием).
+    Семантический поиск по смыслу запроса (мультиязычный).
+    Использует Yandex Embeddings; при их отсутствии — ILIKE fallback.
     """
     page, per_page = _normalize_pagination(page, per_page)
+    settings = get_settings()
 
+    # ── Семантический поиск ─────────────────────────────────────────────────
+    if settings.yandex_api_key and settings.yandex_folder_id:
+        query_vec = await get_yandex_embedding(
+            q, "text-search-query", settings.yandex_api_key, settings.yandex_folder_id
+        )
+        if query_vec:
+            emb_result = await session.execute(select(GiftEmbedding))
+            all_embeddings = emb_result.scalars().all()
+
+            if all_embeddings:
+                scored: list[tuple[int, float]] = []
+                for ge in all_embeddings:
+                    try:
+                        gift_vec = parse_embedding(ge.embedding_json)
+                        scored.append((ge.gift_id, cosine_similarity(query_vec, gift_vec)))
+                    except Exception:
+                        continue
+
+                scored.sort(key=lambda x: x[1], reverse=True)
+                total = len(scored)
+                paged_ids = [gid for gid, _ in scored[(page - 1) * per_page : page * per_page]]
+
+                gifts_result = await session.execute(
+                    select(Gift).where(Gift.id.in_(paged_ids))
+                )
+                by_id = {g.id: g for g in gifts_result.scalars().all()}
+                ordered = [by_id[gid] for gid in paged_ids if gid in by_id]
+
+                favorite_ids = await _fetch_favorite_ids(session, current_user, [g.id for g in ordered])
+                gifts = [
+                    GiftRead.model_validate(g, from_attributes=True).model_copy(
+                        update={"is_favorite": g.id in favorite_ids}
+                    )
+                    for g in ordered
+                ]
+                return GiftListResponse(gifts=gifts, total=total, page=page, per_page=per_page)
+
+    # ── Fallback: ILIKE по названию и описанию ──────────────────────────────
     ilike_pattern = f"%{q}%"
-
     where_clause = or_(
         Gift.name.ilike(ilike_pattern),
         Gift.description.ilike(ilike_pattern),
     )
-
     base_query = select(Gift).where(where_clause).order_by(Gift.created_at.desc())
     count_query = select(func.count(Gift.id)).where(where_clause)
 
