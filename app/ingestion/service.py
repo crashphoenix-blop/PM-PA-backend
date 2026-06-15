@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -21,6 +22,22 @@ from app.ingestion.types import ScrapedGift
 from app.models import Gift, GiftCandidate, GiftSource, IngestionRun
 from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
+
+
+def _is_usable_description(text: Optional[str]) -> bool:
+    """Возвращает True если описание — читаемый текст, а не HTML-мусор или спеки."""
+    if not text or len(text.strip()) < 25:
+        return False
+    # HTML-энтити или теги — описание сырое
+    if re.search(r"&[a-z]+;|&#\d+;|<[^>]>", text):
+        return False
+    # Много буллетов — список характеристик, не описание
+    if text.count("•") + text.count("·") + text.count("&bull") > 1:
+        return False
+    # Обрезанный текст
+    if re.search(r"\.\.\.|…|еще$", text.strip()):
+        return False
+    return True
 
 
 async def _generate_gift_description(name: str, api_key: str, folder_id: str) -> Optional[str]:
@@ -193,9 +210,9 @@ async def _store_candidate(
         await session.flush()
         return False, True
 
-    # Генерируем описание через ИИ, если парсер не нашёл своё
+    # Генерируем описание через ИИ, если парсер не нашёл нормального текста
     description = scraped.description
-    if not description and settings and settings.yandex_api_key and settings.yandex_folder_id:
+    if not _is_usable_description(description) and settings and settings.yandex_api_key and settings.yandex_folder_id:
         description = await _generate_gift_description(
             scraped.name, settings.yandex_api_key, settings.yandex_folder_id
         )
