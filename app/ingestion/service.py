@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import datetime, timezone
@@ -25,116 +26,140 @@ from app.models import Gift, GiftCandidate, GiftSource, IngestionRun
 from app.schemas.gift import GiftCreate
 from app.services.gifts import create_gift_record
 
-_DESCRIPTION_STYLE = (
-    "Ты копирайтер для магазина подарков SURPRISE. Пишешь короткие, живые описания.\n"
-    "Примеры нужного стиля:\n"
-    "— Кольцо ручной работы из эпоксидной смолы, усыпанное стеклянными стразами.\n"
-    "— Ретро джемпер с клубничками. Согреет тебя изнутри и снаружи.\n"
-    "— Керамическая чайная пара в розовом цвете. Объём 400 мл. Можно мыть в посудомоечной машине.\n"
-    "— Игра Пурпур Отношения — «Легальный» способ задать волнующие вопросы и понять друг друга.\n"
-    "Правила: 2–3 предложения. Только обычный текст — никаких маркеров, HTML, символов. Пиши на русском языке."
-)
+# CSS-селекторы, в которых обычно лежит описание товара
+_DESC_SELECTORS = [
+    "[itemprop='description']",
+    ".product-description", ".product__description",
+    ".product-detail__description", ".product-info__description",
+    ".product__content", ".product-body__description",
+    ".woocommerce-product-details__short-description",
+    ".description__text", ".card-item__text",
+    "#description", "#product-description",
+]
+
+_SYSTEM_PROMPT = """\
+Ты копирайтер для магазина подарков SURPRISE. Твоя задача — написать короткое, живое описание товара на основе текста со страницы продавца.
+
+Стиль, которому нужно следовать (реальные примеры из нашего каталога):
+— Кольцо ручной работы из эпоксидной смолы, усыпанное стеклянными стразами.
+— Ретро джемпер с клубничками. Согреет тебя изнутри и снаружи.
+— Керамическая чайная пара в розовом цвете. Объём 400 мл. Можно мыть в посудомоечной машине.
+— Игра Пурпур Отношения — «Легальный» способ задать волнующие вопросы, выровнять ожидания и понять друг друга.
+— Обложка из льняной ткани с вышивкой. Подходит для книг серий «Эксклюзивная классика», «Азбука классика».
+— Мозаичный подстаканник на основе натурального камня. Используется как подставка под украшения, свечи, вазы. Размер: 10×10 см.
+
+Правила:
+• 2–3 предложения
+• Включи: из чего сделан, ключевые особенности, для чего или для кого подходит
+• Исключи: цены, доставку, скидки, призывы купить, название магазина
+• Только обычный текст — никаких маркеров, HTML, символов, кавычек в начале/конце
+• Язык: русский\
+"""
 
 
-async def _fetch_product_page_text(url: str) -> str:
-    """Загружает страницу продавца и извлекает читаемый текстовый контент."""
-    try:
-        async with httpx.AsyncClient(
-            headers=DEFAULT_HEADERS, follow_redirects=True, timeout=20.0
-        ) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            html = resp.text
+def _extract_product_content(html: str, name: str) -> str:
+    """
+    Умный экстрактор описания товара.
+    Приоритеты: JSON-LD → целевые CSS-селекторы → мета-тег → общий текст.
+    """
+    soup = BeautifulSoup(html, "html.parser")
 
-        soup = BeautifulSoup(html, "html.parser")
-        for tag in soup(["script", "style", "nav", "header", "footer", "aside", "iframe"]):
-            tag.decompose()
+    parts: list[str] = []
 
-        text = soup.get_text(separator=" ", strip=True)
-        text = re.sub(r"\s+", " ", text)
-        return text[:3000]
-    except Exception:
-        return ""
+    # 1. JSON-LD структурированные данные (самый надёжный источник)
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if item.get("@type") == "Product":
+                    for field in ("description", "abstract"):
+                        val = item.get(field, "")
+                        if val:
+                            parts.append(re.sub(r"\s+", " ", str(val).strip())[:800])
+                    for field in ("material", "color", "size", "weight"):
+                        val = item.get(field, "")
+                        if val:
+                            parts.append(f"{field}: {val}")
+        except Exception:
+            continue
+
+    if parts:
+        return " ".join(parts)[:2000]
+
+    # 2. CSS-селекторы описания товара
+    for selector in _DESC_SELECTORS:
+        el = soup.select_one(selector)
+        if el:
+            text = el.get_text(separator=" ", strip=True)
+            text = re.sub(r"\s+", " ", text)
+            if len(text) > 30:
+                return text[:2000]
+
+    # 3. Meta description
+    meta = soup.find("meta", attrs={"name": "description"}) or \
+           soup.find("meta", attrs={"property": "og:description"})
+    if meta and meta.get("content", ""):  # type: ignore[union-attr]
+        return str(meta["content"]).strip()[:500]  # type: ignore[index]
+
+    # 4. Общий текст страницы (последний resort)
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "iframe"]):
+        tag.decompose()
+    text = soup.get_text(separator=" ", strip=True)
+    return re.sub(r"\s+", " ", text)[:2000]
 
 
 async def _generate_gift_description(
     name: str,
-    image_url: str,
     store_url: str,
     yandex_api_key: str,
     yandex_folder_id: str,
-    anthropic_api_key: str = "",
 ) -> Optional[str]:
     """
-    Генерирует описание подарка:
-    1. Загружает страницу продавца и анализирует полный текст
-    2. Анализирует изображение товара через Claude Haiku (если ключ есть)
-    3. Fallback — YandexGPT только с текстом
+    Загружает страницу продавца, умно извлекает текст описания
+    и генерирует описание через YandexGPT.
     """
-    page_text = await _fetch_product_page_text(store_url)
+    # Загружаем страницу
+    page_content = ""
+    try:
+        async with httpx.AsyncClient(
+            headers=DEFAULT_HEADERS, follow_redirects=True, timeout=20.0
+        ) as client:
+            resp = await client.get(store_url)
+            resp.raise_for_status()
+            page_content = _extract_product_content(resp.text, name)
+    except Exception:
+        pass
 
     user_prompt = (
         f"Товар: «{name}»\n\n"
-        f"Текст со страницы продавца:\n{page_text}\n\n"
-        "На основе изображения и текста напиши краткое описание в нашем стиле."
+        f"Текст со страницы продавца:\n{page_content}\n\n"
+        "Напиши описание товара в нашем стиле, опираясь на текст выше."
     )
 
-    # ── Попытка 1: Claude Haiku с картинкой + текстом страницы ──────────────
-    if anthropic_api_key and image_url.startswith("http"):
-        try:
-            from anthropic import AsyncAnthropic
-            client = AsyncAnthropic(api_key=anthropic_api_key)
-            message = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=250,
-                system=_DESCRIPTION_STYLE,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {"type": "url", "url": image_url},
-                            },
-                            {"type": "text", "text": user_prompt},
-                        ],
-                    }
-                ],
+    body = {
+        "modelUri": f"gpt://{yandex_folder_id}/yandexgpt/latest",
+        "completionOptions": {"stream": False, "temperature": 0.4, "maxTokens": "250"},
+        "messages": [
+            {"role": "system", "text": _SYSTEM_PROMPT},
+            {"role": "user", "text": user_prompt},
+        ],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+                headers={
+                    "Authorization": f"Api-Key {yandex_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
             )
-            text = message.content[0].text.strip()
-            if text:
-                return text
-        except Exception:
-            pass
-
-    # ── Попытка 2: YandexGPT только с текстом страницы ──────────────────────
-    if yandex_api_key and yandex_folder_id:
-        body = {
-            "modelUri": f"gpt://{yandex_folder_id}/yandexgpt-lite/latest",
-            "completionOptions": {"stream": False, "temperature": 0.5, "maxTokens": "200"},
-            "messages": [
-                {"role": "system", "text": _DESCRIPTION_STYLE},
-                {"role": "user", "text": user_prompt},
-            ],
-        }
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(
-                    "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-                    headers={
-                        "Authorization": f"Api-Key {yandex_api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=body,
-                )
-                resp.raise_for_status()
-            text = resp.json()["result"]["alternatives"][0]["message"]["text"].strip()
-            if text:
-                return text
-        except Exception:
-            pass
-
-    return None
+            resp.raise_for_status()
+        text = resp.json()["result"]["alternatives"][0]["message"]["text"].strip()
+        return text or None
+    except Exception:
+        return None
 
 
 def _max_per_run() -> int:
@@ -270,16 +295,14 @@ async def _store_candidate(
         await session.flush()
         return False, True
 
-    # AI анализирует страницу продавца + изображение и пишет описание
+    # AI загружает страницу продавца и пишет описание
     description = scraped.description
-    if settings and (settings.anthropic_api_key or (settings.yandex_api_key and settings.yandex_folder_id)):
+    if settings and settings.yandex_api_key and settings.yandex_folder_id:
         description = await _generate_gift_description(
             name=scraped.name,
-            image_url=scraped.image_url,
             store_url=scraped.store_url,
             yandex_api_key=settings.yandex_api_key,
             yandex_folder_id=settings.yandex_folder_id,
-            anthropic_api_key=settings.anthropic_api_key,
         ) or scraped.description
 
     candidate = GiftCandidate(
