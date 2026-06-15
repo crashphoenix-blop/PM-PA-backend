@@ -139,6 +139,17 @@ async def reindex_embeddings(
     if not settings.yandex_api_key or not settings.yandex_folder_id:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Yandex API не настроен")
 
+    # Диагностический вызов первого эмбеддинга без перехвата ошибок
+    import httpx as _httpx
+    async with _httpx.AsyncClient(timeout=15.0) as _client:
+        _resp = await _client.post(
+            "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding",
+            headers={"Authorization": f"Api-Key {settings.yandex_api_key}", "Content-Type": "application/json"},
+            json={"modelUri": f"emb://{settings.yandex_folder_id}/text-search-doc/latest", "text": "тест"},
+        )
+    if not _resp.is_success:
+        raise HTTPException(status_code=502, detail=f"Yandex API error {_resp.status_code}: {_resp.text[:500]}")
+
     gifts_result = await session.execute(select(Gift).options(selectinload(Gift.categories)))
     gifts = gifts_result.scalars().all()
 
