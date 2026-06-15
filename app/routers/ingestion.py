@@ -144,6 +144,7 @@ async def reindex_embeddings(
 
     indexed = 0
     failed = 0
+    first_error: str = ""
     for gift in gifts:
         try:
             cat_names = [c.name for c in gift.categories]
@@ -161,12 +162,16 @@ async def reindex_embeddings(
                 await session.flush()
                 indexed += 1
             else:
+                if not first_error:
+                    first_error = f"gift {gift.id}: embedding returned None"
                 failed += 1
-        except Exception:
+        except Exception as exc:
+            if not first_error:
+                first_error = f"gift {gift.id}: {type(exc).__name__}: {exc}"
             failed += 1
 
     await session.commit()
-    return {"indexed": indexed, "failed": failed, "total": len(gifts)}
+    return {"indexed": indexed, "failed": failed, "total": len(gifts), "first_error": first_error}
 
 
 @router.post("/candidates/{candidate_id}/reject", response_model=GiftCandidateRead)
