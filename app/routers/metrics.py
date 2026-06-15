@@ -6,10 +6,11 @@ GET  /admin/metrics/summary   — recompute per-cycle metrics from the DB
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -19,6 +20,67 @@ from app.seed.backfill_metrics import run_backfill
 from app.seed.daily_metrics_data import DAILY
 
 router = APIRouter()
+
+# Single query reproducing the Excel "Cycle summary" sheet straight from the
+# raw tables. Exposed verbatim via /admin/metrics/cycle-summary-sql so it can be
+# copy-pasted into pgAdmin.
+CYCLE_SUMMARY_SQL = """
+WITH cycles (ord, cycle, period, d_start, d_end) AS (
+    VALUES
+        (1, 'Internal',  '01.05-02.05', TIMESTAMPTZ '2026-05-01 00:00:00+00', TIMESTAMPTZ '2026-05-02 23:59:59+00'),
+        (2, 'C1',        '03.05-08.05', TIMESTAMPTZ '2026-05-03 00:00:00+00', TIMESTAMPTZ '2026-05-08 23:59:59+00'),
+        (3, 'C2',        '09.05-15.05', TIMESTAMPTZ '2026-05-09 00:00:00+00', TIMESTAMPTZ '2026-05-15 23:59:59+00'),
+        (4, 'C3',        '16.05-22.05', TIMESTAMPTZ '2026-05-16 00:00:00+00', TIMESTAMPTZ '2026-05-22 23:59:59+00'),
+        (5, 'C4',        '23.05-29.05', TIMESTAMPTZ '2026-05-23 00:00:00+00', TIMESTAMPTZ '2026-05-29 23:59:59+00'),
+        (6, 'C5',        '30.05-05.06', TIMESTAMPTZ '2026-05-30 00:00:00+00', TIMESTAMPTZ '2026-06-05 23:59:59+00'),
+        (7, 'C6',        '06.06-10.06', TIMESTAMPTZ '2026-06-06 00:00:00+00', TIMESTAMPTZ '2026-06-10 23:59:59+00'),
+        (8, 'Follow-up', '11.06-15.06', TIMESTAMPTZ '2026-06-11 00:00:00+00', TIMESTAMPTZ '2026-06-15 23:59:59+00')
+),
+ev AS (
+    SELECT
+        c.ord,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'csat_submit')            AS respondents,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'favorite_click')         AS saved_users,
+        COUNT(*)                  FILTER (WHERE e.event_name = 'favorite_click')         AS favorite_events,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'purchase_click')         AS seller_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'price_filter_apply')     AS price_filter_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'ai_helper_open')         AS ai_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'ai_recommendation_save') AS ai_saved_users,
+        COUNT(DISTINCT e.user_id) FILTER (WHERE e.event_name = 'final_gift_selected')    AS final_gift_selected,
+        AVG((e.payload->>'score')::numeric) FILTER (WHERE e.event_name = 'csat_submit')  AS csat,
+        AVG(e.duration_seconds) FILTER (WHERE e.event_name = 'session_end')              AS avg_time_sec,
+        AVG(CASE WHEN e.payload->>'returned_d3' = 'true' THEN 1.0 ELSE 0 END)
+            FILTER (WHERE e.event_name = 'retention_cohort')                             AS d3_retention
+    FROM cycles c
+    LEFT JOIN analytics_events e
+        ON e.event_time BETWEEN c.d_start AND c.d_end
+    GROUP BY c.ord
+)
+SELECT
+    c.cycle                                                            AS "cycle",
+    c.period                                                           AS "period",
+    (SELECT COUNT(*) FROM users u
+        WHERE u.is_admin = false AND u.created_at BETWEEN c.d_start AND c.d_end) AS "new users",
+    ev.respondents                                                     AS "respondents",
+    ev.saved_users                                                     AS "saved users",
+    ROUND(ev.saved_users::numeric / NULLIF(ev.respondents, 0), 3)      AS "save rate",
+    ev.seller_users                                                    AS "seller click users",
+    ROUND(ev.seller_users::numeric / NULLIF(ev.respondents, 0), 3)     AS "CTR to seller",
+    ev.price_filter_users                                              AS "price filter users",
+    ev.ai_users                                                        AS "AI users",
+    ROUND(ev.ai_users::numeric / NULLIF(ev.respondents, 0), 3)         AS "AI use rate",
+    ev.ai_saved_users                                                  AS "AI saved users",
+    ev.final_gift_selected                                             AS "final gift selected",
+    ROUND(ev.csat, 2)                                                  AS "CSAT",
+    ROUND(ev.avg_time_sec / 60.0, 2)                                   AS "avg time, min",
+    ROUND(ev.favorite_events::numeric / NULLIF(ev.saved_users, 0), 2)  AS "avg saved gifts/user",
+    ROUND(ev.d3_retention, 2)                                          AS "D3 retention",
+    (SELECT COUNT(*) FROM users u
+        WHERE u.is_admin = false AND u.created_at <= c.d_end)          AS "cumulative uniques at end"
+FROM cycles c
+JOIN ev ON ev.ord = c.ord
+ORDER BY c.ord
+"""
 
 
 def _cycle_ranges() -> Dict[str, tuple]:
@@ -45,6 +107,20 @@ async def backfill_metrics(
     48-user synthetic history that matches presentation slides 12-17."""
     summary = await run_backfill(session, wipe=True)
     return summary
+
+
+@router.get("/cycle-summary-sql")
+async def cycle_summary_sql(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(get_current_admin_user),
+) -> dict:
+    """Run the pgAdmin "Cycle summary" query against the DB and return its rows,
+    so the exact SQL can be validated before being copy-pasted into pgAdmin."""
+    result = await session.execute(text(CYCLE_SUMMARY_SQL))
+    rows = []
+    for m in result.mappings().all():
+        rows.append({k: (float(v) if isinstance(v, Decimal) else v) for k, v in m.items()})
+    return {"sql": CYCLE_SUMMARY_SQL.strip(), "rows": rows}
 
 
 @router.get("/summary")
