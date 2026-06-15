@@ -72,9 +72,9 @@ SELECT
     ev.ai_saved_users                                                  AS "AI saved users",
     ev.final_gift_selected                                             AS "final gift selected",
     ROUND(ev.csat, 2)                                                  AS "CSAT",
-    ROUND(ev.avg_time_sec / 60.0, 2)                                   AS "avg time, min",
+    ROUND((ev.avg_time_sec / 60.0)::numeric, 2)                        AS "avg time, min",
     ROUND(ev.favorite_events::numeric / NULLIF(ev.saved_users, 0), 2)  AS "avg saved gifts/user",
-    ROUND(ev.d3_retention, 2)                                          AS "D3 retention",
+    ROUND(ev.d3_retention::numeric, 2)                                 AS "D3 retention",
     (SELECT COUNT(*) FROM users u
         WHERE u.is_admin = false AND u.created_at <= c.d_end)          AS "cumulative uniques at end"
 FROM cycles c
